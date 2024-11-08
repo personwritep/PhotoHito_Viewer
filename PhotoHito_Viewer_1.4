@@ -1,4 +1,4 @@
-// ==UserScript==
+​// ==UserScript==
 // @name         PhotoHito Checker
 // @namespace    http://tampermonkey.net/
 // @version      0.3
@@ -10,6 +10,11 @@
 // @grant        none
 // ==/UserScript==
 
+
+
+let ua=0; // Chromeの場合のフラグ
+let agent=window.navigator.userAgent.toLowerCase();
+if(agent.indexOf('firefox') > -1){ ua=1; } // Firefoxの場合のフラグ
 
 
 let path=location.pathname;
@@ -114,7 +119,10 @@ if(path.match(/\/photo\/\d{1,8}\/$/)){ //「ユーザー別写真リスト」の
         if(!document.querySelector('#abox')){
             let login_menu=document.querySelector('#login_menu');
             if(login_menu){
-                login_menu.insertAdjacentHTML('beforebegin', abox); }}}
+                login_menu.insertAdjacentHTML('beforebegin', abox);
+                if(ua==1){
+                    let style='<style>#check_set { padding: 2px 24px 0 0; }</style>';
+                    login_menu.insertAdjacentHTML('beforebegin', style); }}}}
 
 
 
@@ -151,5 +159,4 @@ if(path.match(/\/photo\/\d{1,8}\/$/)){ //「ユーザー別写真リスト」の
             window.open(url, '_blank'); }}
 
 } //「ユーザー別写真リスト」の画面
-
 
