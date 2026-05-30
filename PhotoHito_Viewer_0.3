@@ -1,0 +1,264 @@
+// ==UserScript==
+// @name         PhotoHito Viewer
+// @namespace    http://tampermonkey.net/
+// @version      0.3
+// @description  try to take over the world!
+// @author       You
+// @match        https://photohito.com/*
+// @match        https://photohito.k-img.com/*
+// @exclude      https://photohito.com/photo/orgshow/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=photohito.com
+// @run-at       document-start
+// @grant        none
+// ==/UserScript==
+
+
+
+let path=location.pathname;
+
+if(path.startsWith('/photo') || path.startsWith('/lens') || path.startsWith('/camera')){
+
+    let retry=0;
+    let interval=setInterval(wait_target, 10);
+    function wait_target(){
+        retry++;
+        if(retry>10){ // リトライ制限 100回 0.1secまで
+            clearInterval(interval); }
+        let target=document.body; // 監視 target
+        if(target){
+            clearInterval(interval);
+            list_env(); }}
+
+
+    function list_env(){
+        let style=
+            '<style id="ph_v">'+
+            'h1#logo { display: none; } '+
+            'body .wrapper_full article #path { margin: 2px 15px 15px !important; } '+
+            '#user_header { margin: -14px 15px 0; } '+
+            'body .wrapper article h1 { font-size: 120%; padding: 0 0 12px 40px; cursor: pointer; } '+
+            'body .wrapper article h1 i { margin-top: -18px; } '+
+            'body .wrapper_full article section { margin-right: 15px !important; } '+
+            'body .wrapper_full aside { position: absolute; top: 0; right: 0; padding: 30px 20px; '+
+            'background: #fff; z-index: 10; display: none; } '+
+            'body .wrapper_full aside .notlogin_banner { display: none; } '+
+            'section { display: flex; flex-direction: column; } '+
+            '.wrapper article h1 { order: -2; } '+
+            '#photo_list_search_form { width: 600px; order: -2; } '+
+            '#photo_list_sort {width: 320px; position: relative; top: -50px; left: 600px; order: -2; } '+
+            '.photo_list { order: 0; } '+
+            '#pagenate { padding: 7px 0; order: -1; margin: -50px 0 20px; background: #f8f8fa; } '+
+            '#photo_detail #photo_view { overflow: hidden; } '+
+            '#photo_detail #photo_view a { margin: 0 auto !important; width: fit-content; } '+
+            '#photo_detail #photo_view a:hover { box-shadow: 0 100vw 0 100vw #000; } '+
+            '.adBox-300-2, .ad_detail, .content_ad, '+
+            '#div-gpt-ad-p-300x250, #div-gpt-ad-p-side_300x250 { display: none; }'+
+            '</style>';
+
+        if(!document.querySelector('#ph_v')){
+            document.documentElement.insertAdjacentHTML('beforeend', style); }}
+
+} // 共通CSS
+
+
+
+
+window.addEventListener('DOMContentLoaded', function(){
+
+    let path=location.pathname;
+
+    if(path.startsWith('/photo')){ //「ユーザー別写真リスト」の画面
+
+        box_env();
+        if(get_cookie('PHView_e')==1){
+            exif_env(); }
+
+        document.addEventListener('mousedown', function(event){
+            if(!event.shiftKey && !event.ctrlKey){
+                event.preventDefault();
+                let elem=document.elementFromPoint(event.clientX, event.clientY);
+                let link_elem=elem.closest('a');
+
+                if(link_elem){
+                    set_img(link_elem);
+                    close(); }}});
+
+
+
+        let photo_side=document.querySelector('#photo_view');
+        if(photo_side){
+            photo_side.onclick=function(){ // 画像両サイドのクリックでウインドウを閉じる
+                window.close(); }}
+
+
+
+        function box_env(){
+            let lightbox=
+                '<div id="lightbox">'+
+                '<div id="photo_sw"><a id="photo_link">📌 Original Data</a></div>'+
+                '<img id="box_img">'+
+                '<style>'+
+                '@keyframes fadeIn { 0% {opacity: 0} 100% {opacity: 1}} '+
+                '.fin { animation: fadeIn .5s ease 0s 1 normal; animation-fill-mode: both; } '+
+                '@keyframes fadeOut { 0% {opacity: 1} 100% {opacity: 0}} '+
+                '.fout { animation: fadeOut .2s ease 0s 1 normal; animation-fill-mode: both; } '+
+                '#lightbox { position: fixed; top: 0; left: 0; z-index: 3000; visibility: hidden; '+
+                'background: black; width: 100vw; height: 100vh; text-align: center; } '+
+                '#photo_sw { position: absolute; width: 100%; height: 15%; } '+
+                '#photo_sw:hover #photo_link { opacity: 1; } '+
+                '#photo_link { position: absolute; top: 20px; left: 30px; opacity: 0; '+
+                'font: bold 21px Meiryo; padding: 4px 12px 2px 10px; background: #fff; color: #000; '+
+                'border: 2px solid #000; border-radius: 6px; cursor: pointer; text-decoration: none; } '+
+                '#box_img { width: 98vw; height: 98vh; padding: 1vh 1vw; object-fit: contain; } '+
+                '</style></div>'+
+                '<div id="exif_sw">'+
+                'Exifを上部表示'+
+                '<style>'+
+                '#exif_sw { position: absolute; top: 84px; left: 500px; z-index: 1; font-size: 15px; '+
+                'padding: 11px 10px 8px; border: solid 1px #999; border-radius: 2px; '+
+                'cursor: pointer; z-index: 1; }'+
+                '</style></div>';
+
+            if(!document.querySelector('#lightbox')){
+                document.body.insertAdjacentHTML('beforeend', lightbox); }}
+
+
+
+        function exif_env(){
+            let ex_style=
+                '<style id="exif_style">'+
+                '#user_header { z-index: 1; } '+
+                '#photo_detail .wrapper:nth-child(3) { width: 1000px !important; } '+
+                '#photo_detail #photo_view a { margin: 0 260px 0 0 !important; width: fit-content; } '+
+                '#photo_detail #photo_view { display: flex; flex-wrap: wrap; justify-content: center; } '+
+                '#photo_detail #photo_view h1 { width: 100%; } '+
+                '#sideInfo { position: absolute;top: 90px; left: calc(50vw + 220px); '+
+                'padding: 20px 8px; width: 250px; background: #fff; } '+
+                '.notlogin_banner, #tag_area, #location_area, #btn_violation { display: none; } '+
+                '#photo_view_side { display: none; } '+
+                'aside table { margin: 5px 0 0; } '+
+                'aside tr { display: flex; flex-direction: column; } '+
+                'aside th { padding: 0; font-size: 12px; } '+
+                'aside td { padding: 0 0 5px; text-align: left; }'+
+                '</style>';
+
+            if(!document.querySelector('#exif_style')){
+                document.documentElement.insertAdjacentHTML('beforeend', ex_style); }}
+
+
+
+        let exif_sw=document.querySelector('#exif_sw'); // Exifパネルの配置スイッチ
+        if(exif_sw){
+            exif_sw.onclick=function(){
+                let exif_style=document.querySelector('#exif_style');
+                if(exif_style){
+                    document.cookie='PHView_e=0; path=/; Max-Age=2592000'; // 30日有効
+                    exif_style.remove(); }
+                else{
+                    document.cookie='PHView_e=1; path=/; Max-Age=2592000'; // 30日有効
+                    exif_env(); }}}
+
+
+
+        function set_img(target){
+            let html_=document.querySelector('html');
+            let lightbox=document.querySelector('#lightbox');
+            let photo_link=document.querySelector('#photo_link');
+            let box_img=lightbox.querySelector('#box_img');
+            let img=target.querySelectorAll('img')[1];
+            if(lightbox && photo_link && box_img && img){
+                let img_url=img.getAttribute('src');
+                if(img_url){
+                    let last=img_url.slice(-5);
+                    box_img.src=img_url;
+                    html_.style.overflow='hidden';
+                    lightbox.style.visibility='visible';
+                    lightbox.classList.remove('fout');
+                    lightbox.classList.add('fin');
+                    if(last=='l.jpg'){
+                        let new_url=img_url.slice(0, -5) +'o.jpg';
+                        photo_link.onmousedown=function(event){
+                            event.stopImmediatePropagation();
+                            window.open(new_url); }}}}}
+
+
+
+        function close(){
+            let html_=document.querySelector('html');
+            let lightbox=document.querySelector('#lightbox');
+            let box_img=lightbox.querySelector('#box_img');
+            if(lightbox){
+                lightbox.onclick=function(event){
+                    event.preventDefault();
+                    html_.style.overflow='inherit';
+                    lightbox.classList.remove('fin');
+                    lightbox.classList.add('fout');
+                    setTimeout(()=>{
+                        lightbox.style.visibility='hidden';
+                        box_img.src='';
+                    }, 200); }}}
+
+
+
+        function get_cookie(name){
+            let cookie_req=document.cookie.split('; ').find(row=>row.startsWith(name));
+            if(cookie_req){
+                if(cookie_req.split('=')[1]==null){
+                    return 0; }
+                else{
+                    return cookie_req.split('=')[1]; }}
+            if(!cookie_req){
+                return 0; }}
+
+
+    } //「ユーザー別写真リスト」の画面
+
+
+
+
+    if(path.startsWith('/lens') || path.startsWith('/camera')){ //「サムネイルリスト」の画面
+
+        let plist_a=document.querySelectorAll('.photo_list .grid > a');
+        for(let k=0; k<plist_a.length; k++){
+            plist_a[k].setAttribute('target', '_blank'); }
+
+        let title=document.querySelector('.wrapper article h1');
+        let aside=document.querySelector('.wrapper_full aside');
+        if(title && aside){
+            title.onclick=function(){
+                if(aside.style.display!='block'){
+                    aside.style.display='block'; }
+                else{
+                    aside.style.display='none'; }}}
+
+    } //「lens」「camera」の検索抽出画像の「サムネイルリスト」の画面
+
+}); // main()
+
+
+
+
+if(path.startsWith('/uploads')){
+
+    window.addEventListener('load', function(){
+
+        let close_env=
+            '<div id="photo_sw"><span id="close_sw">✖ Close</span>'+
+            '<style>'+
+            '#photo_sw { position: fixed; top: 0; left: 0; width: 100%; height: 15%; } '+
+            '#photo_sw:hover #close_sw { opacity: 1; } '+
+            '#close_sw { position: absolute; top: 20px; left: 30px; opacity: 0; display: inline-block; '+
+            'font: bold 21px Meiryo; padding: 5px 12px 2px 10px; background: #000; color: #fff; '+
+            'border: 2px solid #fff; border-radius: 6px; cursor: pointer; text-decoration: none; } '+
+            '</style></div>';
+
+        if(!document.querySelector('#photo_sw')){
+            document.body.insertAdjacentHTML('beforeend', close_env); }
+
+
+        let close_sw=document.querySelector('#close_sw');
+        if(close_sw){
+            close_sw.onclick=function(){ //「✖ Close」のクリックでウインドウを閉じる
+                window.close(); }}
+
+    });} // Orginal Data 画像のみのウインドウ
